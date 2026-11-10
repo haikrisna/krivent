@@ -1,0 +1,148 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SaleStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+enum StockMovementType {
+  OPENING
+  PURCHASE
+  SALE
+  RETURN
+  ADJUSTMENT
+}
+
+model User {
+  id             String          @id @default(uuid()) @db.Uuid
+  email          String          @unique @db.VarChar(254)
+  name           String          @db.VarChar(120)
+  passwordHash   String          @map("password_hash") @db.VarChar(255)
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sales          Sale[]
+  stockMovements StockMovement[]
+
+  @@map("users")
+}
+
+model Category {
+  isActive    Boolean   @default(true) @map("is_active")
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique @db.VarChar(120)
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id             String          @id @default(uuid()) @db.Uuid
+  categoryId     String          @map("category_id") @db.Uuid
+  sku            String          @unique @db.VarChar(64)
+  name           String          @db.VarChar(200)
+  description    String?
+  costPrice      Decimal         @map("cost_price") @db.Decimal(18, 2)
+  sellingPrice   Decimal         @map("selling_price") @db.Decimal(18, 2)
+  stockQuantity  Int             @default(0) @map("stock_quantity")
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  saleItems      SaleItem[]
+  stockMovements StockMovement[]
+
+  @@index([categoryId])
+  @@index([name])
+  @@map("products")
+}
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(32)
+  name      String   @db.VarChar(120)
+  email     String?  @db.VarChar(254)
+  phone     String?  @db.VarChar(32)
+  address   String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sales     Sale[]
+
+  @@index([name])
+  @@map("customers")
+}
+
+model Sale {
+  id            String     @id @default(uuid()) @db.Uuid
+  invoiceNumber String     @unique @map("invoice_number") @db.VarChar(64)
+  customerId    String?    @map("customer_id") @db.Uuid
+  createdById   String     @map("created_by_id") @db.Uuid
+  status        SaleStatus @default(DRAFT)
+  totalAmount   Decimal    @default(0) @map("total_amount") @db.Decimal(18, 2)
+  notes         String?
+  soldAt        DateTime   @default(now()) @map("sold_at") @db.Timestamptz(3)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  customer      Customer?  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy     User       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items         SaleItem[]
+
+  @@index([customerId])
+  @@index([createdById])
+  @@index([status, soldAt])
+  @@index([soldAt])
+  @@map("sales")
+}
+
+model SaleItem {
+  id             String          @id @default(uuid()) @db.Uuid
+  saleId         String          @map("sale_id") @db.Uuid
+  productId      String          @map("product_id") @db.Uuid
+  quantity       Int
+  unitPrice      Decimal         @map("unit_price") @db.Decimal(18, 2)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sale           Sale            @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  stockMovements StockMovement[]
+
+  @@unique([saleId, productId])
+  @@unique([id, productId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+model StockMovement {
+  id          String            @id @default(uuid()) @db.Uuid
+  productId   String            @map("product_id") @db.Uuid
+  createdById String            @map("created_by_id") @db.Uuid
+  saleItemId  String?           @map("sale_item_id") @db.Uuid
+  type        StockMovementType
+  // Signed delta: incoming positive, outgoing negative.
+  quantity    Int
+  notes       String?
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  product     Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy   User              @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  saleItem    SaleItem?         @relation(fields: [saleItemId, productId], references: [id, productId], onDelete: Restrict)
+
+  @@index([productId, createdAt])
+  @@index([createdById])
+  @@index([saleItemId, productId])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
