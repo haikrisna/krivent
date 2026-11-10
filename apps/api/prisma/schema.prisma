@@ -39,6 +39,10 @@ model User {
   isActive       Boolean         @default(true) @map("is_active")
   createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  leads          Lead[]
+  customers      Customer[]
+  crmActivities  CrmActivity[]
+  followUps      FollowUp[]
   sales          Sale[]
   stockMovements StockMovement[]
 
@@ -79,16 +83,27 @@ model Product {
 }
 
 model Customer {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      String   @unique @db.VarChar(32)
-  name      String   @db.VarChar(120)
-  email     String?  @db.VarChar(254)
-  phone     String?  @db.VarChar(32)
-  address   String?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
-  sales     Sale[]
+  ownerId         String?       @map("owner_id") @db.Uuid
+  owner           User?         @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  leadId          String?       @unique @map("lead_id") @db.Uuid
+  lead            Lead?         @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  contactName     String?       @map("contact_name") @db.VarChar(120)
+  dedupKey        String?       @unique @map("dedup_key") @db.VarChar(120)
+  normalizedEmail String?       @unique @map("normalized_email") @db.VarChar(254)
+  isActive        Boolean       @default(true) @map("is_active")
+  activities      CrmActivity[]
+  followUps       FollowUp[]
+  id              String        @id @default(uuid()) @db.Uuid
+  code            String        @unique @db.VarChar(32)
+  name            String        @db.VarChar(120)
+  email           String?       @db.VarChar(254)
+  phone           String?       @db.VarChar(32)
+  address         String?
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sales           Sale[]
 
+  @@index([ownerId, isActive])
   @@index([name])
   @@map("customers")
 }
@@ -187,4 +202,90 @@ model AdminBootstrap {
   completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(3)
 
   @@map("admin_bootstrap")
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  OTHER
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model Lead {
+  id          String        @id @default(uuid()) @db.Uuid
+  companyName String        @map("company_name") @db.VarChar(120)
+  contactName String        @map("contact_name") @db.VarChar(120)
+  email       String?       @db.VarChar(254)
+  phone       String?       @db.VarChar(32)
+  source      String        @db.VarChar(80)
+  ownerId     String        @map("owner_id") @db.Uuid
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  stage       LeadStage     @default(NEW)
+  notes       String?
+  lostReason  String?       @map("lost_reason")
+  isActive    Boolean       @default(true) @map("is_active")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  customer    Customer?
+  activities  CrmActivity[]
+  followUps   FollowUp[]
+
+  @@index([ownerId, isActive, stage])
+  @@index([source])
+  @@index([createdAt, id])
+  @@map("leads")
+}
+
+model CrmActivity {
+  id         String       @id @default(uuid()) @db.Uuid
+  leadId     String?      @map("lead_id") @db.Uuid
+  customerId String?      @map("customer_id") @db.Uuid
+  lead       Lead?        @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  customer   Customer?    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  actorId    String       @map("actor_id") @db.Uuid
+  actor      User         @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  type       ActivityType
+  note       String
+  occurredAt DateTime     @map("occurred_at") @db.Timestamptz(3)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([leadId, occurredAt, id])
+  @@index([customerId, occurredAt, id])
+  @@map("crm_activities")
+}
+
+model FollowUp {
+  id         String         @id @default(uuid()) @db.Uuid
+  leadId     String?        @map("lead_id") @db.Uuid
+  customerId String?        @map("customer_id") @db.Uuid
+  lead       Lead?          @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  customer   Customer?      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  assigneeId String         @map("assignee_id") @db.Uuid
+  assignee   User           @relation(fields: [assigneeId], references: [id], onDelete: Restrict)
+  note       String
+  dueAt      DateTime       @map("due_at") @db.Timestamptz(3)
+  status     FollowUpStatus @default(PENDING)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([assigneeId, status, dueAt])
+  @@index([leadId, dueAt])
+  @@index([customerId, dueAt])
+  @@map("follow_ups")
 }

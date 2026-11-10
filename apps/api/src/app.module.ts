@@ -5,12 +5,13 @@ import { createObserveModule } from '@nestjs/observe';
 import { environmentSchema } from './config/environment.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
+import { CrmModule } from './crm/crm.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { HealthModule } from './health/health.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule({
   skipInstrumentation: (instance) =>
-    /^(AuthService|UsersService|PasswordService|JwtAuthProvider|PrismaService)$/.test(
+    /^(AuthService|UsersService|PasswordService|JwtAuthProvider|PrismaService|CrmService)$/.test(
       (instance as object)?.constructor?.name ?? '',
     ),
 });
@@ -50,6 +51,7 @@ export const observeEnabled = Boolean(
     UsersModule,
     HealthModule,
     CatalogModule,
+    CrmModule,
   ],
 })
 export class AppModule {}

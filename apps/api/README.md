@@ -236,3 +236,17 @@ Migrasi 20261110060000_identity_sessions mempertahankan data/relasi lama dan men
 API User hanya mengembalikan field allowlist, tanpa passwordHash maupun token hash. Semua response no-store.
 
 Lihat PHASE3-VERIFICATION.md untuk hasil pemeriksaan terbaru. PHASE1/PHASE2-VERIFICATION.md merupakan riwayat fase sebelumnya.
+
+## Phase 4 — CRM Backend
+
+CRM mencakup lead lifecycle NEW → CONTACTED → QUALIFIED → PROPOSAL → WON/LOST,
+konversi customer transaksional/idempotent, activity append-only, dan follow-up.
+Admin mengelola semua data; sales hanya owner sendiri; Warehouse tidak mendapat akses CRM.
+Customer lama dipertahankan dengan owner nullable, tersedia bagi Admin untuk assignment.
+
+- [Desain, ERD, RBAC dan kontrak API](docs/phase4-crm.md)
+- [Urutan request Postman](docs/phase4-postman-guide.md)
+- [Hasil verifikasi aktual](PHASE4-VERIFICATION.md)
+
+Gunakan `npm run db:deploy` untuk menerapkan migrasi yang sudah ditinjau pada database lokal.
+Swagger `/api/docs` memuat route CRM dengan Bearer authentication.
