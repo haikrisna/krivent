@@ -1,6 +1,7 @@
 # Krivent — kebutuhan bisnis
 
-PT Nusa Digital Distribusi adalah distributor elektronik B2B fiktif. Tujuannya menghubungkan prospek, pelanggan, penjualan, dan pemenuhan barang dengan jejak yang dapat ditelusuri. Dokumen ini membedakan rancangan target dari implementasi Phase 2.
+> Baseline desain Phase 2. Implementasi autentikasi dan matriks izin terkini mengikuti [Phase 3](phase3-authentication.md), termasuk izin Warehouse membuat/mengubah katalog.
+> PT Nusa Digital Distribusi adalah distributor elektronik B2B fiktif. Tujuannya menghubungkan prospek, pelanggan, penjualan, dan pemenuhan barang dengan jejak yang dapat ditelusuri. Dokumen ini membedakan rancangan target dari implementasi Phase 2.
 
 ## Aktor dan use case
 

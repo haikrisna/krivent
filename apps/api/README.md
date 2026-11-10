@@ -1,15 +1,15 @@
-# Krivent API — Phase 2
+# Krivent API — Phase 3
 
 Fondasi backend Inventory & Sales Management untuk distributor elektronik fiktif.
 Modular monolith: controller menangani HTTP, service menangani logika, Prisma mengakses PostgreSQL.
-Phase 2 menambahkan katalog Category/Product, validasi, arsip aman, pencarian dan pagination.
-Autentikasi/RBAC, CRM, pemrosesan penjualan, mutasi stok, reporting dan frontend belum diimplementasikan.
-Endpoint katalog sementara hanya menerima NODE_ENV=development dan socket loopback; jangan expose melalui proxy/tunnel.
+Phase 3 menambahkan login JWT, refresh token rotation/replay protection, session revocation, Users dan RBAC.
+Semua endpoint bisnis memerlukan Bearer token; health tetap public. Katalog tetap mempertahankan aturan Phase 2.
+CRM, mutasi Inventory, Sales, dashboard/reporting, audit log dan frontend belum diimplementasikan.
 
-- [Kebutuhan bisnis](docs/business-requirements.md)
-- [Arsitektur, audit dan ERD target](docs/architecture.md)
-- [Contoh curl/Postman dan checklist manual](docs/phase2-manual-testing.md)
-- [Hasil verifikasi Phase 2 dan daftar file](PHASE2-VERIFICATION.md)
+- [Setup Admin, Postman dan checklist Phase 3](docs/phase3-postman-guide.md)
+- [Audit, arsitektur autentikasi, matriks role dan mentoring](docs/phase3-authentication.md)
+- [Hasil verifikasi dan seluruh file berubah](PHASE3-VERIFICATION.md)
+- [Kebutuhan bisnis](docs/business-requirements.md) dan [arsitektur/ERD baseline](docs/architecture.md)
 
 ## Versi dan prasyarat
 
@@ -41,6 +41,8 @@ Saat setup Phase 1, file lokal yang sudah ada dipertahankan dan dilengkapi passw
 docker compose up -d --wait
 npm run prisma:generate
 npm run db:deploy
+npm run build
+# Siapkan AUTH_JWT_SECRET di .env dan bootstrap Admin sesuai panduan Phase 3.
 npm run start:dev
 ```
 
@@ -55,7 +57,9 @@ Untuk mengembangkan schema selanjutnya: ubah `prisma/schema.prisma`, lalu jalank
 - Frontend yang diizinkan CORS: `http://localhost:5173` (ubah `FRONTEND_ORIGIN` jika diperlukan).
 
 API dan port database hanya bind ke loopback untuk pengembangan lokal.
-`PORT` default 4000. `FRONTEND_ORIGIN` harus berupa satu origin HTTP localhost/127.0.0.1
+`PORT` default 4000. AUTH_JWT_SECRET wajib 64 digit hex acak (32 byte), tanpa default.
+Lihat .env.example dan panduan Phase 3 untuk issuer/audience, expiry dan bootstrap Admin.
+`FRONTEND_ORIGIN` harus berupa satu origin HTTP localhost/127.0.0.1
 tepat tanpa path atau trailing slash. Browser memblokir origin lain karena header CORS
 hanya mengizinkan origin yang dikonfigurasi. CORS bukan autentikasi atau pembatas akses curl.
 
@@ -83,7 +87,12 @@ src/configure-app.ts            Prefix, validation pipe, CORS, Swagger, shutdown
 src/config/                     Validasi environment dan unit test
 src/prisma/                     Provider Prisma dan lifecycle koneksi
 src/health/                     Controller HTTP dan service health
-src/catalog/                    Schema, controller, service dan guard katalog
+src/catalog/                    Katalog, dilindungi global auth + Roles
+src/auth/                       Login/refresh/logout, JWT provider, role guard
+src/users/                      DTO, Users management, safe presenter
+src/security/                   Argon2id password hashing
+src/common/                     Error filter API bersama
+src/admin-bootstrap.ts          Command Admin awal lewat stdin
 docs/                           Kebutuhan bisnis, arsitektur, checklist manual
 test/                          Pengujian HTTP dan integrasi database
 ```
@@ -107,7 +116,7 @@ erDiagram
 
 | Tabel           | Keputusan utama                                                                                   |
 | --------------- | ------------------------------------------------------------------------------------------------- |
-| users           | Email unik, nama, password_hash, status aktif; belum ada login                                    |
+| users           | Email unik, nama, password_hash, role, status aktif; JWT dan session server-side                  |
 | categories      | Nama unik, deskripsi, dan status aktif (migrasi aditif Phase 2)                                   |
 | products        | SKU unik, kategori wajib, harga pokok/jual, saldo stok, status aktif                              |
 | customers       | Kode unik, nama, kontak opsional; email tidak harus unik                                          |
@@ -185,9 +194,9 @@ docker compose up -d --wait
 curl -i http://localhost:4000/api/v1/health
 ```
 
-Unit test memeriksa environment dan pembatasan akses katalog lokal. Tes HTTP fondasi memakai database double untuk menguji 200/503,
+Unit test memeriksa environment, role guard dan Argon2id. Tes HTTP fondasi memakai database double untuk menguji 200/503,
 prefix, Swagger, CORS, dan validasi input. Tes integrasi membutuhkan PostgreSQL yang telah dimigrasi,
-memakai koneksi nyata: tes fondasi memeriksa constraint dengan transaksi rollback, sedangkan tes katalog mengakses HTTP dan membersihkan hanya fixture UUID miliknya.
+memakai koneksi nyata: tes fondasi memeriksa constraint dengan transaksi rollback; tes katalog/identity/bootstrap memakai schema acak terisolasi. Build dahulu karena bootstrap suite menjalankan dist/admin-bootstrap.js.
 Semua suite bisa membutuhkan izin socket lokal jika dijalankan di sandbox.
 
 ```sh
@@ -210,3 +219,20 @@ Gunakan `docker compose ps` dan `docker compose logs postgres` untuk diagnosis.
 Tidak ada perintah reset database otomatis pada setup ini.
 
 Lihat `PHASE1-VERIFICATION.md` untuk riwayat fondasi dan `PHASE2-VERIFICATION.md` untuk verifikasi katalog.
+
+## Authentication Phase 3
+
+Admin mengelola Users dan seluruh Catalog; Sales read-only Catalog; Warehouse read/create/update Catalog tetapi tidak archive.
+Login/refresh mengembalikan token JSON. JWT access 15 menit, refresh 7 hari dan session absolute 30 hari secara default.
+Access token diperiksa dengan session/user di DB sehingga logout, password/email/role change dan deaktivasi segera berlaku.
+Refresh single-use; replay, termasuk refresh concurrent, mencabut family. Klien wajib single-flight refresh.
+
+Tidak ada public registration atau password Admin default. Jalankan npm run build lalu npm run admin:bootstrap dengan JSON stdin sesuai panduan.
+Guard development lokal telah diganti authentication/RBAC; mode production tidak lagi otomatis menolak Admin yang terautentikasi,
+namun aplikasi tetap bind loopback dan belum di-deploy. CORS bukan autentikasi.
+
+Tambahan tabel: auth_sessions, refresh_tokens, admin_bootstrap; User.role default SALES_STAFF untuk data lama.
+Migrasi 20261110060000_identity_sessions mempertahankan data/relasi lama dan menambah unique normalized email expression index.
+API User hanya mengembalikan field allowlist, tanpa passwordHash maupun token hash. Semua response no-store.
+
+Lihat PHASE3-VERIFICATION.md untuk hasil pemeriksaan terbaru. PHASE1/PHASE2-VERIFICATION.md merupakan riwayat fase sebelumnya.

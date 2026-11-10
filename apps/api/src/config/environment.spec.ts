@@ -1,6 +1,8 @@
+import { randomBytes } from 'node:crypto';
 import { environmentSchema } from './environment.js';
 
 const valid = {
+  AUTH_JWT_SECRET: randomBytes(32).toString('hex'),
   DATABASE_URL: 'postgresql://user:secret@localhost:5432/krivent',
 };
 
@@ -13,6 +15,15 @@ describe('environment configuration', () => {
 
   it.each([
     {},
+    { ...valid, AUTH_JWT_SECRET: '' },
+    { ...valid, AUTH_JWT_SECRET: 'a'.repeat(64) },
+    { ...valid, AUTH_JWT_SECRET: '0123456789abcdef'.repeat(3) },
+    { ...valid, AUTH_JWT_ISSUER: 'invalid' },
+    { ...valid, AUTH_JWT_AUDIENCE: '' },
+    { ...valid, AUTH_ACCESS_TTL_SECONDS: 3600 },
+    { ...valid, AUTH_REFRESH_TTL_DAYS: 31 },
+    { ...valid, AUTH_SESSION_TTL_DAYS: 5, AUTH_REFRESH_TTL_DAYS: 7 },
+    { ...valid, AUTH_LOGIN_LIMIT: 0 },
     { ...valid, DATABASE_URL: 'mysql://user:secret@localhost/db' },
     { ...valid, DATABASE_URL: 'postgresql://localhost/db' },
     { ...valid, PORT: '0' },

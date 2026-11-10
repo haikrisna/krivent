@@ -23,7 +23,15 @@ enum StockMovementType {
   ADJUSTMENT
 }
 
+enum UserRole {
+  ADMIN
+  SALES_STAFF
+  WAREHOUSE_STAFF
+}
+
 model User {
+  role           UserRole        @default(SALES_STAFF)
+  authSessions   AuthSession[]
   id             String          @id @default(uuid()) @db.Uuid
   email          String          @unique @db.VarChar(254)
   name           String          @db.VarChar(120)
@@ -145,4 +153,38 @@ model StockMovement {
   @@index([saleItemId, productId])
   @@index([createdAt])
   @@map("stock_movements")
+}
+
+model AuthSession {
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String         @map("user_id") @db.Uuid
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt     DateTime       @map("expires_at") @db.Timestamptz(3)
+  revokedAt     DateTime?      @map("revoked_at") @db.Timestamptz(3)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model RefreshToken {
+  // SHA-256 digest of 32 random bytes; the raw token is never persisted.
+  hash      String      @id @db.Char(64)
+  sessionId String      @map("session_id") @db.Uuid
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime    @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?   @map("used_at") @db.Timestamptz(3)
+  session   AuthSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  @@index([sessionId])
+  @@map("refresh_tokens")
+}
+
+model AdminBootstrap {
+  id          String   @id @db.VarChar(32)
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(3)
+
+  @@map("admin_bootstrap")
 }

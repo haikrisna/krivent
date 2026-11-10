@@ -1,0 +1,4 @@
+import { SetMetadata } from '@nestjs/common';
+import type { UserRole } from '../generated/prisma/client.js';
+export const ROLES_KEY = 'krivent.roles';
+export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES_KEY, roles);

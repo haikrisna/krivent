@@ -3,11 +3,10 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { CategoryController } from './category.controller.js';
 import { ProductController } from './product.controller.js';
 import { CatalogService } from './catalog.service.js';
-import { LocalDevelopmentGuard } from './local-development.guard.js';
 
 @Module({
   imports: [PrismaModule],
   controllers: [CategoryController, ProductController],
-  providers: [CatalogService, LocalDevelopmentGuard],
+  providers: [CatalogService],
 })
 export class CatalogModule {}

@@ -75,7 +75,7 @@ export function CatalogOperation(
     ApiOperation({
       summary: `${action} ${kind}`,
       description:
-        'Local development only; authentication/RBAC is scheduled for the next phase. Archive is terminal and preserves references. Money is a decimal string in IDR.',
+        'Bearer access token required. Admin/Warehouse may create/update; only Admin may archive. Archive is terminal and preserves references. Money is a decimal string in IDR.',
     }),
     ApiResponse({
       status: action === 'create' ? 201 : 200,
@@ -101,7 +101,8 @@ export function CatalogOperation(
   ];
   for (const [status, message] of [
     [400, 'Invalid input'],
-    [403, 'Local development only'],
+    [401, 'Authentication required'],
+    [403, 'Insufficient permissions'],
     [404, 'Record not found'],
     [409, 'Duplicate or archived record'],
     [500, 'Internal server error'],

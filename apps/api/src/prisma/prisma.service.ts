@@ -14,14 +14,22 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor(@Inject(ConfigService) config: ConfigService) {
+    const databaseUrl = config.getOrThrow<string>('DATABASE_URL');
+    const schema = new URL(databaseUrl).searchParams.get('schema') ?? 'public';
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema))
+      throw new TypeError('Unsupported database schema name');
     super({
-      adapter: new PrismaPg({
-        connectionString: config.getOrThrow<string>('DATABASE_URL'),
-        connectionTimeoutMillis: 3000,
-        query_timeout: 3000,
-        statement_timeout: 3000,
-        max: 10,
-      }),
+      adapter: new PrismaPg(
+        {
+          options: `-c search_path=${schema}`,
+          connectionString: databaseUrl,
+          connectionTimeoutMillis: 3000,
+          query_timeout: 3000,
+          statement_timeout: 3000,
+          max: 10,
+        },
+        { schema },
+      ),
     });
   }
 

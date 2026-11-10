@@ -1,5 +1,7 @@
 # Arsitektur dan model data Krivent
 
+> Baseline desain Phase 2. Implementasi autentikasi dan matriks izin terkini mengikuti [Phase 3](phase3-authentication.md), termasuk izin Warehouse membuat/mengubah katalog.
+
 ## Audit awal repository
 
 Runtime lokal Node 24.22.2; hasil npm ls: Nest common/core 12.4.2, Swagger 12.1.1, Prisma CLI/client/adapter-pg 7.10.1, TypeScript 6.0.3, Zod 4.6.7, Vitest 4.1.12. ESM memakai import relatif .js dan explicit @Inject agar kompatibel dengan transformasi Vitest tanpa metadata constructor.

@@ -4,6 +4,9 @@ import type { INestApplication } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { AuthModule } from '../src/auth/auth.module.js';
+import { PasswordService } from '../src/security/password.service.js';
+import { isolatedDatabase } from './support/isolated-database.js';
 import { CatalogModule } from '../src/catalog/catalog.module.js';
 import { configureApp } from '../src/configure-app.js';
 import { environmentSchema } from '../src/config/environment.js';
@@ -14,6 +17,8 @@ describe('Catalog HTTP with PostgreSQL persistence', () => {
   let prisma: PrismaService;
   let config: ConfigService;
   let categoryId: string;
+  let token: string;
+  let database: Awaited<ReturnType<typeof isolatedDatabase>>;
   const categoryIds: string[] = [];
   const sku = () => `TEST-${randomUUID()}`.toUpperCase();
   const input = () => ({
@@ -23,7 +28,8 @@ describe('Catalog HTTP with PostgreSQL persistence', () => {
     costPrice: '1000000.01',
     sellingPrice: '1250000.99',
   });
-  const http = () => request(app.getHttpServer());
+  const http = () =>
+    request.agent(app.getHttpServer()).set('Authorization', `Bearer ${token}`);
   const create = async (data = input()) => {
     const response = await http()
       .post('/api/v1/products')
@@ -43,13 +49,17 @@ describe('Catalog HTTP with PostgreSQL persistence', () => {
   };
 
   beforeAll(async () => {
+    database = await isolatedDatabase();
     const module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
           validationSchema: environmentSchema,
-          load: [() => ({ NODE_ENV: 'development' })],
+          load: [
+            () => ({ NODE_ENV: 'test', DATABASE_URL: database.databaseUrl }),
+          ],
         }),
+        AuthModule,
         CatalogModule,
       ],
     }).compile();
@@ -58,6 +68,21 @@ describe('Catalog HTTP with PostgreSQL persistence', () => {
     await app.init();
     prisma = app.get(PrismaService);
     config = app.get(ConfigService);
+    const password = `Test-${randomUUID()}`;
+    const admin = await prisma.user.create({
+      data: {
+        email: `admin-${randomUUID()}@example.test`,
+        name: 'Catalog test Admin',
+        role: 'ADMIN',
+        passwordHash: await app.get(PasswordService).hash(password),
+      },
+    });
+    token = (
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: admin.email, password })
+        .expect(200)
+    ).body.data.accessToken;
   });
   beforeEach(async () => {
     const response = await http()
@@ -80,6 +105,7 @@ describe('Catalog HTTP with PostgreSQL persistence', () => {
       }
     } finally {
       if (app) await app.close();
+      if (database) await database.cleanup();
     }
   });
 
@@ -408,16 +434,17 @@ describe('Catalog HTTP with PostgreSQL persistence', () => {
     ).toBe(true);
   });
 
-  it('blocks all catalog operations outside development mode', async () => {
+  it('requires authentication and allows authenticated Admin catalog access outside development mode', async () => {
+    await request(app.getHttpServer()).get('/api/v1/products').expect(401);
     config.set('NODE_ENV', 'production');
     try {
-      expectError((await http().get('/api/v1/products').expect(403)).body, 403);
-      await http()
+      await http().get('/api/v1/products').expect(200);
+      await request(app.getHttpServer())
         .post('/api/v1/categories')
         .send({ name: 'Forbidden' })
-        .expect(403);
+        .expect(401);
     } finally {
-      config.set('NODE_ENV', 'development');
+      config.set('NODE_ENV', 'test');
     }
   });
 });

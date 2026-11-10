@@ -8,13 +8,10 @@ import {
   Patch,
   Post,
   Query,
-  UseFilters,
-  UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CatalogService } from './catalog.service.js';
-import { CatalogErrorFilter } from './catalog-error.filter.js';
-import { LocalDevelopmentGuard } from './local-development.guard.js';
+import { Roles } from '../auth/roles.decorator.js';
 import { CatalogOperation } from './catalog.swagger.js';
 import {
   categoryCreateSchema,
@@ -28,8 +25,8 @@ import {
 const present = <T>(value: T) => value;
 
 @ApiTags('categories')
-@UseFilters(CatalogErrorFilter)
-@UseGuards(LocalDevelopmentGuard)
+@ApiBearerAuth('access-token')
+@Roles('ADMIN', 'SALES_STAFF', 'WAREHOUSE_STAFF')
 @Controller('categories')
 export class CategoryController {
   constructor(
@@ -37,6 +34,7 @@ export class CategoryController {
   ) {}
 
   @Post()
+  @Roles('ADMIN', 'WAREHOUSE_STAFF')
   @CatalogOperation('category', 'create')
   async create(@Body({ schema: categoryCreateSchema }) body: CategoryCreate) {
     return { data: present(await this.catalog.createCategory(body)) };
@@ -56,6 +54,7 @@ export class CategoryController {
   }
 
   @Patch(':id')
+  @Roles('ADMIN', 'WAREHOUSE_STAFF')
   @CatalogOperation('category', 'update')
   async update(
     @Param('id', { schema: idSchema }) id: string,
@@ -65,6 +64,7 @@ export class CategoryController {
   }
 
   @Post(':id/archive')
+  @Roles('ADMIN')
   @CatalogOperation('category', 'archive')
   @HttpCode(200)
   async archive(@Param('id', { schema: idSchema }) id: string) {
