@@ -41,6 +41,12 @@ const productProperties = {
     example: 'ThinkPad E14',
   },
   description: categoryProperties.description,
+  lowStockThreshold: {
+    type: 'integer',
+    minimum: 0,
+    maximum: 2147483647,
+    example: 10,
+  },
   costPrice: price,
   sellingPrice: { ...price, example: '1500000.00' },
 };

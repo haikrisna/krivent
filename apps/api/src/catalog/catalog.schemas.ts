@@ -27,6 +27,7 @@ export const productCreateSchema = z.strictObject({
     .transform((v) => v.toUpperCase()),
   name: text(200),
   description: text(2000).nullable().optional(),
+  lowStockThreshold: z.number().int().min(0).max(2147483647).optional(),
   costPrice: moneySchema,
   sellingPrice: moneySchema,
 });

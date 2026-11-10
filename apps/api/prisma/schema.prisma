@@ -62,20 +62,22 @@ model Category {
 }
 
 model Product {
-  id             String          @id @default(uuid()) @db.Uuid
-  categoryId     String          @map("category_id") @db.Uuid
-  sku            String          @unique @db.VarChar(64)
-  name           String          @db.VarChar(200)
-  description    String?
-  costPrice      Decimal         @map("cost_price") @db.Decimal(18, 2)
-  sellingPrice   Decimal         @map("selling_price") @db.Decimal(18, 2)
-  stockQuantity  Int             @default(0) @map("stock_quantity")
-  isActive       Boolean         @default(true) @map("is_active")
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
-  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  saleItems      SaleItem[]
-  stockMovements StockMovement[]
+  id                String          @id @default(uuid()) @db.Uuid
+  categoryId        String          @map("category_id") @db.Uuid
+  sku               String          @unique @db.VarChar(64)
+  name              String          @db.VarChar(200)
+  description       String?
+  costPrice         Decimal         @map("cost_price") @db.Decimal(18, 2)
+  sellingPrice      Decimal         @map("selling_price") @db.Decimal(18, 2)
+  stockVersion      Int             @default(0) @map("stock_version")
+  lowStockThreshold Int             @default(0) @map("low_stock_threshold")
+  stockQuantity     Int             @default(0) @map("stock_quantity")
+  isActive          Boolean         @default(true) @map("is_active")
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  category          Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  saleItems         SaleItem[]
+  stockMovements    StockMovement[]
 
   @@index([categoryId])
   @@index([name])
@@ -149,20 +151,28 @@ model SaleItem {
 }
 
 model StockMovement {
-  id          String            @id @default(uuid()) @db.Uuid
-  productId   String            @map("product_id") @db.Uuid
-  createdById String            @map("created_by_id") @db.Uuid
-  saleItemId  String?           @map("sale_item_id") @db.Uuid
-  type        StockMovementType
+  beforeBalance  Int?              @map("before_balance")
+  afterBalance   Int?              @map("after_balance")
+  stockVersion   Int?              @map("stock_version")
+  idempotencyKey String?           @map("idempotency_key") @db.VarChar(128)
+  requestHash    String?           @map("request_hash") @db.Char(64)
+  id             String            @id @default(uuid()) @db.Uuid
+  productId      String            @map("product_id") @db.Uuid
+  createdById    String            @map("created_by_id") @db.Uuid
+  saleItemId     String?           @map("sale_item_id") @db.Uuid
+  type           StockMovementType
   // Signed delta: incoming positive, outgoing negative.
-  quantity    Int
-  notes       String?
-  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
-  product     Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
-  createdBy   User              @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  saleItem    SaleItem?         @relation(fields: [saleItemId, productId], references: [id, productId], onDelete: Restrict)
+  quantity       Int
+  notes          String?
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  product        Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy      User              @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  saleItem       SaleItem?         @relation(fields: [saleItemId, productId], references: [id, productId], onDelete: Restrict)
 
+  @@unique([createdById, idempotencyKey])
+  @@unique([productId, stockVersion])
+  @@index([type, createdAt, id])
   @@index([productId, createdAt])
   @@index([createdById])
   @@index([saleItemId, productId])

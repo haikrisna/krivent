@@ -1,10 +1,10 @@
-# Krivent API — Phase 3
+# Krivent API — Phase 5
 
 Fondasi backend Inventory & Sales Management untuk distributor elektronik fiktif.
 Modular monolith: controller menangani HTTP, service menangani logika, Prisma mengakses PostgreSQL.
 Phase 3 menambahkan login JWT, refresh token rotation/replay protection, session revocation, Users dan RBAC.
 Semua endpoint bisnis memerlukan Bearer token; health tetap public. Katalog tetap mempertahankan aturan Phase 2.
-CRM, mutasi Inventory, Sales, dashboard/reporting, audit log dan frontend belum diimplementasikan.
+CRM dan Inventory sudah diimplementasikan. Sales fulfillment, dashboard, audit log umum dan frontend belum diimplementasikan.
 
 - [Setup Admin, Postman dan checklist Phase 3](docs/phase3-postman-guide.md)
 - [Audit, arsitektur autentikasi, matriks role dan mentoring](docs/phase3-authentication.md)
@@ -91,6 +91,8 @@ src/catalog/                    Katalog, dilindungi global auth + Roles
 src/auth/                       Login/refresh/logout, JWT provider, role guard
 src/users/                      DTO, Users management, safe presenter
 src/security/                   Argon2id password hashing
+src/crm/                        Leads, customers, activities dan follow-ups
+src/inventory/                  Saldo, receipt, count adjustment dan ledger immutable
 src/common/                     Error filter API bersama
 src/admin-bootstrap.ts          Command Admin awal lewat stdin
 docs/                           Kebutuhan bisnis, arsitektur, checklist manual
@@ -144,9 +146,9 @@ dan mutasi != 0. OPENING/PURCHASE/RETURN positif, SALE negatif dan wajib merefer
 ADJUSTMENT boleh positif/negatif. Semua RETURN saat ini berarti barang masuk kembali dari pelanggan.
 Prisma DSL belum menyatakan CHECK constraints tersebut; pertahankan SQL-nya pada migrasi berikutnya.
 
-`stock_quantity` adalah saldo, `stock_movements` adalah jurnal. Schema belum otomatis menyamakan
-keduanya atau menghitung `total_amount`: fase penjualan harus memperbarui saldo, jurnal,
-item, dan total dalam satu transaksi dengan perlindungan konkurensi. Jangan menganggap perubahan
+`stock_quantity` adalah saldo, `stock_movements` adalah jurnal. Phase 5 mengikat perubahan saldo/versi
+dengan ledger melalui transaksi dan deferred constraint trigger. Histori legacy tetap dipertahankan tanpa snapshot buatan.
+Fase penjualan kelak harus memperbarui saldo, jurnal, item, dan total dalam transaksi yang sama. Jangan menganggap perubahan
 status DRAFT menjadi COMPLETED sudah memiliki efek stok pada fase ini.
 
 ## Environment dan keamanan konfigurasi
@@ -250,3 +252,19 @@ Customer lama dipertahankan dengan owner nullable, tersedia bagi Admin untuk ass
 
 Gunakan `npm run db:deploy` untuk menerapkan migrasi yang sudah ditinjau pada database lokal.
 Swagger `/api/docs` memuat route CRM dengan Bearer authentication.
+
+
+## Phase 5 — Inventory Backend
+
+Satu gudang: saldo Product tetap otoritatif, receipt menambah stok, adjustment memakai hasil hitung fisik dan expectedVersion.
+Ledger immutable menyimpan actor, reason, delta, before/after dan versi. Row lock PostgreSQL, CHECK, unique key dan
+constraint trigger menjaga stok nonnegatif serta pencatatan atomik. Semua mutasi wajib Idempotency-Key actor-scoped.
+Admin/Warehouse boleh menulis; Sales read-only. Low stock memakai threshold per produk yang dapat diubah melalui Products.
+
+- [Desain, konkurensi, migrasi dan batasan](docs/phase5-inventory.md)
+- [Panduan Postman distributor elektronik](docs/phase5-postman-guide.md)
+- [Perintah, hasil pengujian dan daftar perubahan](PHASE5-VERIFICATION.md)
+
+Endpoint `/api/v1/inventory`: POST receipts/adjustments, GET balances/movements/movements/:id.
+Swagger `/api/docs` memuat body, header idempotensi, filter, pagination dan status respons.
+Jalankan migrasi sebelum build/test; build harus selesai sebelum integration karena suite bootstrap memakai dist.
