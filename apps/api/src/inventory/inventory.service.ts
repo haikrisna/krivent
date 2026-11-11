@@ -148,6 +148,46 @@ export class InventoryService {
           timeout: 10000,
         });
   }
+  // Internal only: caller owns the order lock and ReadCommitted transaction.
+  async deduct(
+    tx: Prisma.TransactionClient,
+    actorId: string,
+    item: { id: string; productId: string; quantity: number },
+  ) {
+    await tx.$queryRaw`SELECT id FROM products WHERE id = ${item.productId}::uuid FOR UPDATE`;
+    const product = await tx.product.findUniqueOrThrow({
+      where: { id: item.productId },
+    });
+    if (!product.isActive) throw new ConflictException('Product is archived');
+    if (!Number.isInteger(item.quantity) || item.quantity <= 0)
+      throw new BadRequestException('Invalid sale quantity');
+    if (product.stockQuantity < item.quantity)
+      throw new ConflictException('Insufficient stock');
+    if (product.stockVersion === 2147483647)
+      throw new ConflictException('Stock version exceeds supported range');
+    const after = product.stockQuantity - item.quantity;
+    await tx.product.update({
+      where: { id: product.id },
+      data: { stockQuantity: after, stockVersion: { increment: 1 } },
+    });
+    return tx.stockMovement.create({
+      data: {
+        productId: product.id,
+        createdById: actorId,
+        saleItemId: item.id,
+        type: 'SALE',
+        quantity: -item.quantity,
+        beforeBalance: product.stockQuantity,
+        afterBalance: after,
+        stockVersion: product.stockVersion + 1,
+        notes: 'Sales order fulfillment',
+        idempotencyKey: 'sale/' + item.id,
+        requestHash: createHash('sha256')
+          .update(JSON.stringify(item))
+          .digest('hex'),
+      },
+    });
+  }
   async movement(id: string) {
     const row = await this.prisma.stockMovement.findUnique({
       where: { id },

@@ -10,6 +10,8 @@ datasource db {
 }
 
 enum SaleStatus {
+  CONFIRMED
+  FULFILLED
   DRAFT
   COMPLETED
   CANCELLED
@@ -111,19 +113,25 @@ model Customer {
 }
 
 model Sale {
-  id            String     @id @default(uuid()) @db.Uuid
-  invoiceNumber String     @unique @map("invoice_number") @db.VarChar(64)
-  customerId    String?    @map("customer_id") @db.Uuid
-  createdById   String     @map("created_by_id") @db.Uuid
-  status        SaleStatus @default(DRAFT)
-  totalAmount   Decimal    @default(0) @map("total_amount") @db.Decimal(18, 2)
-  notes         String?
-  soldAt        DateTime   @default(now()) @map("sold_at") @db.Timestamptz(3)
-  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
-  customer      Customer?  @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  createdBy     User       @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  items         SaleItem[]
+  confirmedAt        DateTime?      @map("confirmed_at") @db.Timestamptz(3)
+  fulfilledAt        DateTime?      @map("fulfilled_at") @db.Timestamptz(3)
+  completedAt        DateTime?      @map("completed_at") @db.Timestamptz(3)
+  cancelledAt        DateTime?      @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason String?        @map("cancellation_reason")
+  receipts           OrderReceipt[]
+  id                 String         @id @default(uuid()) @db.Uuid
+  invoiceNumber      String         @unique @map("invoice_number") @db.VarChar(64)
+  customerId         String?        @map("customer_id") @db.Uuid
+  createdById        String         @map("created_by_id") @db.Uuid
+  status             SaleStatus     @default(DRAFT)
+  totalAmount        Decimal        @default(0) @map("total_amount") @db.Decimal(18, 2)
+  notes              String?
+  soldAt             DateTime       @default(now()) @map("sold_at") @db.Timestamptz(3)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  customer           Customer?      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy          User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items              SaleItem[]
 
   @@index([customerId])
   @@index([createdById])
@@ -298,4 +306,19 @@ model FollowUp {
   @@index([leadId, dueAt])
   @@index([customerId, dueAt])
   @@map("follow_ups")
+}
+
+model OrderReceipt {
+  id          String @id @default(uuid()) @db.Uuid
+  actorId     String @map("actor_id") @db.Uuid
+  operation   String @db.VarChar(16)
+  key         String @db.VarChar(128)
+  requestHash String @map("request_hash") @db.Char(64)
+  orderId     String @map("order_id") @db.Uuid
+  response    Json
+  order       Sale   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([actorId, operation, key])
+  @@index([orderId])
+  @@map("order_receipts")
 }
