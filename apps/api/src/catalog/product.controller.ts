@@ -1,3 +1,5 @@
+import { CurrentUser } from '@nestjs/authentication';
+import type { Actor } from '../crm/crm.schemas.js';
 import {
   Body,
   Controller,
@@ -63,17 +65,23 @@ export class ProductController {
   @Roles('ADMIN', 'WAREHOUSE_STAFF')
   @CatalogOperation('product', 'update')
   async update(
+    @CurrentUser() actor: Actor,
     @Param('id', { schema: idSchema }) id: string,
     @Body({ schema: productUpdateSchema }) body: ProductUpdate,
   ) {
-    return { data: present(await this.catalog.updateProduct(id, body)) };
+    return {
+      data: present(await this.catalog.updateProduct(id, body, actor.id)),
+    };
   }
 
   @Post(':id/archive')
   @Roles('ADMIN')
   @CatalogOperation('product', 'archive')
   @HttpCode(200)
-  async archive(@Param('id', { schema: idSchema }) id: string) {
-    return { data: present(await this.catalog.archiveProduct(id)) };
+  async archive(
+    @CurrentUser() actor: Actor,
+    @Param('id', { schema: idSchema }) id: string,
+  ) {
+    return { data: present(await this.catalog.archiveProduct(id, actor.id)) };
   }
 }

@@ -1,3 +1,4 @@
+import { audit } from '../audit/audit.js';
 import {
   BadRequestException,
   ConflictException,
@@ -123,7 +124,7 @@ export class InventoryService {
         where: { id: product.id },
         data: { stockQuantity: after, stockVersion: { increment: 1 } },
       });
-      return tx.stockMovement.create({
+      const movement = await tx.stockMovement.create({
         data: {
           productId: product.id,
           createdById: actorId,
@@ -138,6 +139,20 @@ export class InventoryService {
         },
         select: movementSelect,
       });
+      await audit(
+        tx,
+        actorId,
+        kind === 'receipt' ? 'INVENTORY_RECEIVED' : 'INVENTORY_ADJUSTED',
+        'STOCK_MOVEMENT',
+        movement.id,
+        {
+          productId: product.id,
+          quantity: delta,
+          beforeBalance: product.stockQuantity,
+          afterBalance: after,
+        },
+      );
+      return movement;
     };
     // Internal callers can compose inventory writes with another domain transaction.
     // Callers supplying a transaction must use ReadCommitted and the same lock order.

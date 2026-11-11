@@ -1,3 +1,4 @@
+import { ReportingModule } from './reporting/reporting.module.js';
 import 'dotenv/config';
 import { SalesOrdersModule } from './sales-orders/sales-orders.module.js';
 import { Module } from '@nestjs/common';
@@ -13,7 +14,7 @@ import { HealthModule } from './health/health.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule({
   skipInstrumentation: (instance) =>
-    /^(AuthService|UsersService|PasswordService|JwtAuthProvider|PrismaService|CrmService|InventoryService|SalesOrdersService)$/.test(
+    /^(AuthService|UsersService|PasswordService|JwtAuthProvider|PrismaService|CrmService|InventoryService|SalesOrdersService|ReportingService)$/.test(
       (instance as object)?.constructor?.name ?? '',
     ),
 });
@@ -56,6 +57,7 @@ export const observeEnabled = Boolean(
     CrmModule,
     InventoryModule,
     SalesOrdersModule,
+    ReportingModule,
   ],
 })
 export class AppModule {}
