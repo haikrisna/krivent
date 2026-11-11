@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { SalesOrdersModule } from './sales-orders/sales-orders.module.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { createObserveModule } from '@nestjs/observe';
@@ -12,7 +13,7 @@ import { HealthModule } from './health/health.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule({
   skipInstrumentation: (instance) =>
-    /^(AuthService|UsersService|PasswordService|JwtAuthProvider|PrismaService|CrmService|InventoryService)$/.test(
+    /^(AuthService|UsersService|PasswordService|JwtAuthProvider|PrismaService|CrmService|InventoryService|SalesOrdersService)$/.test(
       (instance as object)?.constructor?.name ?? '',
     ),
 });
@@ -54,6 +55,7 @@ export const observeEnabled = Boolean(
     CatalogModule,
     CrmModule,
     InventoryModule,
+    SalesOrdersModule,
   ],
 })
 export class AppModule {}

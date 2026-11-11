@@ -268,3 +268,9 @@ Admin/Warehouse boleh menulis; Sales read-only. Low stock memakai threshold per 
 Endpoint `/api/v1/inventory`: POST receipts/adjustments, GET balances/movements/movements/:id.
 Swagger `/api/docs` memuat body, header idempotensi, filter, pagination dan status respons.
 Jalankan migrasi sebelum build/test; build harus selesai sebelum integration karena suite bootstrap memakai dist.
+
+### Phase 6 — Sales Orders
+
+Sales orders tersedia di `/api/v1/sales-orders`: create/list/detail, PATCH notes draft, serta POST `:id/confirm`, `:id/fulfill`, `:id/complete`, `:id/cancel`. Create dan fulfill memerlukan `Idempotency-Key`. Tidak ada reservasi; stok dipotong atomik melalui InventoryService saat fulfillment. Sales dibatasi ownership Customer; Warehouse mendapat proyeksi operasional. Pembatalan hanya sebelum fulfillment.
+
+Desain dan penjelasan transaksi: [Phase 6](docs/phase6-sales-orders.md). Contoh request: [Postman](docs/phase6-postman-guide.md). Hasil aktual dan batas verifikasi: [PHASE6-VERIFICATION.md](PHASE6-VERIFICATION.md).

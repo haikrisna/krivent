@@ -28,7 +28,7 @@ export function configureApp(app: INestApplication) {
     new DocumentBuilder()
       .setTitle('Krivent API')
       .setDescription(
-        'Inventory & Sales Management — Phase 5 Inventory, CRM, authentication, users, RBAC and catalog',
+        'Inventory & Sales Management — Phase 6 Sales Orders, Inventory, CRM, authentication, users, RBAC and catalog',
       )
       .setVersion('1.0.0')
       .addBearerAuth(
