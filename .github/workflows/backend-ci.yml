@@ -15,6 +15,9 @@ jobs:
     name: Lint and Build
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/krivent_ci
+
     defaults:
       run:
         working-directory: apps/api
