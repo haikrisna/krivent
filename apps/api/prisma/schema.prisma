@@ -135,6 +135,8 @@ model Sale {
 
   @@index([customerId])
   @@index([createdById])
+  @@index([status, fulfilledAt, id])
+  @@index([createdById, fulfilledAt])
   @@index([status, soldAt])
   @@index([soldAt])
   @@map("sales")
@@ -321,4 +323,20 @@ model OrderReceipt {
   @@unique([actorId, operation, key])
   @@index([orderId])
   @@map("order_receipts")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorId      String   @map("actor_id") @db.Uuid
+  action       String   @db.VarChar(80)
+  resourceType String   @map("resource_type") @db.VarChar(40)
+  resourceId   String   @map("resource_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  metadata     Json
+  requestId    String?  @map("request_id") @db.Uuid
+
+  @@index([createdAt, id])
+  @@index([resourceType, resourceId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
 }

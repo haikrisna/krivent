@@ -1,3 +1,4 @@
+import { audit } from '../audit/audit.js';
 import {
   ConflictException,
   ForbiddenException,
@@ -152,6 +153,17 @@ export class UsersService {
         data: change,
         select: publicUserSelect,
       });
+      if (changed)
+        await audit(
+          tx,
+          actorId,
+          change.role !== undefined
+            ? 'USER_ROLE_CHANGED'
+            : 'USER_STATUS_CHANGED',
+          'USER',
+          id,
+          change,
+        );
       if (changed)
         await tx.authSession.updateMany({
           where: { userId: id, revokedAt: null },

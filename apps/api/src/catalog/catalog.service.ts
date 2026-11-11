@@ -1,3 +1,4 @@
+import { audit } from '../audit/audit.js';
 import {
   ConflictException,
   Inject,
@@ -95,17 +96,34 @@ export class CatalogService {
   getProduct(id: string) {
     return this.product(this.prisma, id);
   }
-  updateProduct(id: string, data: ProductUpdate) {
+  updateProduct(id: string, data: ProductUpdate, actorId: string) {
     return this.write(async (tx) => {
       const product = await this.product(tx, id, true);
       await this.category(tx, data.categoryId ?? product.categoryId, true);
-      return tx.product.update({ where: { id }, data });
+      const updated = await tx.product.update({ where: { id }, data });
+      if (
+        !updated.costPrice.eq(product.costPrice) ||
+        !updated.sellingPrice.eq(product.sellingPrice)
+      )
+        await audit(tx, actorId, 'PRODUCT_PRICE_CHANGED', 'PRODUCT', id, {
+          costPrice: updated.costPrice.toFixed(2),
+          sellingPrice: updated.sellingPrice.toFixed(2),
+        });
+      return updated;
     });
   }
-  archiveProduct(id: string) {
+  archiveProduct(id: string, actorId: string) {
     return this.write(async (tx) => {
-      await this.product(tx, id);
-      return tx.product.update({ where: { id }, data: { isActive: false } });
+      const product = await this.product(tx, id);
+      const updated = await tx.product.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      if (product.isActive)
+        await audit(tx, actorId, 'PRODUCT_ARCHIVED', 'PRODUCT', id, {
+          isActive: false,
+        });
+      return updated;
     });
   }
 

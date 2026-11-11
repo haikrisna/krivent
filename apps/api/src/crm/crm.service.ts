@@ -1,3 +1,4 @@
+import { audit } from '../audit/audit.js';
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -152,6 +153,7 @@ export class CrmService {
           occurredAt: new Date(),
         },
       });
+      await audit(tx, a.id, 'LEAD_STAGE_CHANGED', 'LEAD', id, { stage });
       return tx.lead.update({
         where: { id },
         data: {
@@ -241,6 +243,9 @@ export class CrmService {
           note: 'Lead converted to customer',
           occurredAt: new Date(),
         },
+      });
+      await audit(tx, a.id, 'LEAD_CONVERTED', 'LEAD', id, {
+        customerId: customer.id,
       });
       return customer;
     });

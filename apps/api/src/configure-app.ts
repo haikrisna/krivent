@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { requestContext } from './audit/audit.js';
 import {
   StandardSchemaValidationPipe,
   type INestApplication,
@@ -14,7 +16,9 @@ export function configureApp(app: INestApplication) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    next();
+    const requestId = randomUUID();
+    res.setHeader('X-Request-ID', requestId);
+    requestContext.run({ requestId }, next);
   });
   app.useGlobalFilters(new ApiErrorFilter());
   app.useGlobalPipes(new StandardSchemaValidationPipe());
@@ -28,7 +32,7 @@ export function configureApp(app: INestApplication) {
     new DocumentBuilder()
       .setTitle('Krivent API')
       .setDescription(
-        'Inventory & Sales Management — Phase 6 Sales Orders, Inventory, CRM, authentication, users, RBAC and catalog',
+        'Inventory & Sales Management — Phase 7 Dashboard analytics, reporting, append-only audit, sales orders, inventory, CRM and RBAC',
       )
       .setVersion('1.0.0')
       .addBearerAuth(

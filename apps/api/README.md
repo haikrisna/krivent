@@ -274,3 +274,16 @@ Jalankan migrasi sebelum build/test; build harus selesai sebelum integration kar
 Sales orders tersedia di `/api/v1/sales-orders`: create/list/detail, PATCH notes draft, serta POST `:id/confirm`, `:id/fulfill`, `:id/complete`, `:id/cancel`. Create dan fulfill memerlukan `Idempotency-Key`. Tidak ada reservasi; stok dipotong atomik melalui InventoryService saat fulfillment. Sales dibatasi ownership Customer; Warehouse mendapat proyeksi operasional. Pembatalan hanya sebelum fulfillment.
 
 Desain dan penjelasan transaksi: [Phase 6](docs/phase6-sales-orders.md). Contoh request: [Postman](docs/phase6-postman-guide.md). Hasil aktual dan batas verifikasi: [PHASE6-VERIFICATION.md](PHASE6-VERIFICATION.md).
+
+
+## Phase 7 — Dashboard, Reporting dan Audit
+
+Endpoint GET baru: `/api/v1/dashboard/summary`, `/api/v1/reports/{sales,top-products,sales-performance,lead-conversion,inventory}`, dan `/api/v1/audit-logs`. Admin company-wide dan audit; Sales hanya sales/CRM miliknya; Warehouse hanya inventory pada modul reporting. Realisasi dihitung sekali pada fulfilledAt untuk FULFILLED/COMPLETED, berbeda dari orderedValue dan jumlah order. Uang tetap string Decimal IDR.
+
+Audit append-only mencatat perubahan akses user, harga/arsip produk, stage/konversi CRM, receipt/adjustment, dan transisi/fulfillment order dalam transaksi bisnis yang sama. Trigger PostgreSQL menolak UPDATE/DELETE/TRUNCATE audit. Tidak ada backfill histori atau retensi otomatis. Request mempunyai `X-Request-ID` yang dapat dicocokkan ke audit Admin.
+
+- [Definisi metrik, arsitektur, RBAC, transaksi, indeks dan batas](docs/phase7-dashboard-reporting-audit.md)
+- [Panduan Postman](docs/phase7-postman-guide.md)
+- [Verifikasi aktual Phase 7](PHASE7-VERIFICATION.md)
+
+Jalankan `npm run db:deploy` untuk migrasi aditif yang sudah ditinjau, kemudian `npm run build` sebelum tes integrasi. Query waktu Phase 7 memakai ISO datetime dengan offset, rentang `[from,to)`, dan hari UTC. Kontrak Swagger di `/api/docs`. Backend berhenti pada Phase 7; tidak ada frontend/deployment.

@@ -1,3 +1,4 @@
+import { audit } from '../audit/audit.js';
 import {
   BadRequestException,
   ConflictException,
@@ -307,6 +308,14 @@ export class SalesOrdersService {
                   cancellationReason: reason,
                 },
       });
+      await audit(tx, a.id, 'ORDER_' + action.toUpperCase(), 'SALE', id, {
+        status:
+          action === 'confirm'
+            ? 'CONFIRMED'
+            : action === 'complete'
+              ? 'COMPLETED'
+              : 'CANCELLED',
+      });
       return this.read(tx, a, id);
     });
   }
@@ -333,6 +342,9 @@ export class SalesOrdersService {
       await tx.sale.update({
         where: { id },
         data: { status: 'FULFILLED', fulfilledAt: new Date() },
+      });
+      await audit(tx, a.id, 'ORDER_FULFILLED', 'SALE', id, {
+        status: 'FULFILLED',
       });
       return this.receipt(tx, a, 'fulfill', key!, requestHash, id);
     });
